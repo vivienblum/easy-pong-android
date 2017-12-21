@@ -15,7 +15,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     SensorManager mSensorManager;
 
 
-    private static final int accelero_seuil = 35;
+    private static final int accelero_seuil = 25;
+    private static final int orientation_seuil = 2;
     private static final int OSC = 0;
     private static final int UDP = 1;
 
@@ -25,6 +26,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     Sensor gyroscopeDefault;
     Sensor mAccelerometer;
     Sensor orientation;
+    Sensor magnetometer;
     UDPClient udpClient;
     int packetNumber = 0;
 
@@ -66,6 +68,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         // Pour trouver un capteur spécifique
         gyroscopeDefault = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
         mAccelerometer =    mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        magnetometer = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
     }
 
     private void initNetwork() {
@@ -77,7 +80,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         super.onResume();
         mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME);
         mSensorManager.registerListener(this, gyroscopeDefault, SensorManager.SENSOR_DELAY_GAME);
-        mSensorManager.registerListener(this,orientation,SensorManager.SENSOR_DELAY_GAME);
+        mSensorManager.registerListener(this,magnetometer,SensorManager.SENSOR_DELAY_GAME);
     }
 
     protected void onPause() {
@@ -89,29 +92,18 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     public void onSensorChanged(SensorEvent event) {
         packetNumber ++;
         String message = "";
-        String gyro = "";
 
-        if ( event.sensor.getType() == Sensor.TYPE_GYROSCOPE ){
-            message = "gyro :" + event.values[2];
-        } else if( event.sensor.getType() == Sensor.TYPE_ACCELEROMETER){
-            if(Math.abs(event.values[1]) + Math.abs(event.values[2]) >= accelero_seuil) {
+        if ( event.sensor.getType() >= Sensor.TYPE_GYROSCOPE ){
+            if (Math.abs(event.values[2])>= orientation_seuil){
+                message = "gyro :" + event.values[2];
+            }
+        } else if( event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            if (Math.abs(event.values[1]) + Math.abs(event.values[2]) >= accelero_seuil) {
                 message = "accelero :" + (Math.abs(event.values[1]) + Math.abs(event.values[2]));
                 mGravity = event.values;
             }
         }
-
-        //traitement special sur le magnetometre, selon les recommandation google
-        if (mAccelerometer != null && gyroscopeDefault != null) {
-            float R[] = new float[9];
-            float I[] = new float[9];
-            boolean success = SensorManager.getRotationMatrix(R, I, mGravity, mGeomagnetic);
-            if (success) {
-                float orientation[] = new float[3];
-                SensorManager.getOrientation(R, orientation);
-            }
-        }
-        sendMessage(message);
-        //sendMessage(messageCompas);
+        if(!message.equals(""))sendMessage(message);
     }
 
     private String currentProtocoleToString() {
