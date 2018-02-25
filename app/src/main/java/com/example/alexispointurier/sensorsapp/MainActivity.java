@@ -2,6 +2,7 @@ package com.example.alexispointurier.sensorsapp;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SyncStatusObserver;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -11,26 +12,26 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.KeyEvent;
 import android.view.WindowManager;
 
+import java.io.IOException;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+
+import oscP5.OscEventListener;
+
 public class MainActivity extends AppCompatActivity implements SensorEventListener {
     SensorManager mSensorManager;
 
-
-    private static final int accelero_seuil = 25;
-    private static final int orientation_seuil = 2;
+    private static final int accelero_seuil = 20;
     private static final int OSC = 0;
     private static final int UDP = 1;
 
-    float[] mGravity = new float[11];
-    float[] mGeomagnetic = new float[11];
-
-    Sensor gyroscopeDefault;
-    Sensor mAccelerometer;
-    Sensor orientation;
+    Sensor accelerometer;
+    Sensor gyroscope;
     Sensor magnetometer;
     UDPClient udpClient;
     int packetNumber = 0;
-
-    private int currentProtocole;
+    int currentProtocole = 0;
+    String lastMessage = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,14 +45,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         initNetwork();
         initComponentSensors();
-
     }
 
 
     @Override
-    public void onBackPressed(){
-        // Toast.MakeText(getApplicationContext(),"You Are Not Allowed to Exit the App", Toast.LENGTH_SHORT).show();
-    }
+    public void onBackPressed(){}
 
 
     @Override
@@ -62,12 +60,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
 
     private void initComponentSensors() {
-
-
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        // Pour trouver un capteur spécifique
-        gyroscopeDefault = mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-        mAccelerometer =    mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        accelerometer =    mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         magnetometer = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
     }
 
@@ -78,8 +72,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     protected void onResume() {
         super.onResume();
-        mSensorManager.registerListener(this, mAccelerometer, SensorManager.SENSOR_DELAY_GAME);
-        mSensorManager.registerListener(this, gyroscopeDefault, SensorManager.SENSOR_DELAY_GAME);
+        mSensorManager.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME);
         mSensorManager.registerListener(this,magnetometer,SensorManager.SENSOR_DELAY_GAME);
     }
 
@@ -88,29 +81,41 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mSensorManager.unregisterListener(this);
     }
 
+
+
     @Override
     public void onSensorChanged(SensorEvent event) {
         packetNumber ++;
         String message = "";
 
-        if ( event.sensor.getType() >= Sensor.TYPE_GYROSCOPE ){
-            if (Math.abs(event.values[2])>= orientation_seuil){
-                message = "gyro :" + event.values[2];
-            }
-        } else if( event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+        if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            message = "orientation :" + Math.round(event.values[0]) + ":" + Math.round(event.values[2]);
+        } else if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
             if (Math.abs(event.values[1]) + Math.abs(event.values[2]) >= accelero_seuil) {
-                message = "accelero :" + (Math.abs(event.values[1]) + Math.abs(event.values[2]));
-                mGravity = event.values;
+                message = "vitesse :" + (Math.abs(event.values[1]) + Math.abs(event.values[2]));
             }
         }
-        if(!message.equals(""))sendMessage(message);
+
+        if(!message.equals("") && !message.equals(lastMessage)){
+            lastMessage = message;
+            System.out.println(message);
+            try {
+                sendMessage(message);
+            } catch (SocketException e) {
+                System.out.println(e);
+            } catch (UnknownHostException e) {
+                System.out.println(e);
+            } catch (IOException e) {
+                System.out.println(e);
+            }
+        }
     }
 
     private String currentProtocoleToString() {
         return currentProtocole==1?"UDP":"OSC";
     }
 
-    private void sendMessage(String message) {
+    private void sendMessage(String message) throws IOException {
         if(currentProtocole == OSC){
             udpClient.sendMessageOSC(message);
         } else if(currentProtocole == UDP){

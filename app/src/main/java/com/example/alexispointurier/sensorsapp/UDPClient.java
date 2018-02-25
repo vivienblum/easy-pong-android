@@ -11,6 +11,7 @@ import java.net.SocketException;
 import java.net.UnknownHostException;
 
 import netP5.NetAddress;
+import netP5.NetInfo;
 import oscP5.OscMessage;
 import oscP5.OscP5;
 
@@ -19,8 +20,7 @@ public  class UDPClient {
     int port = 8000;
     InetAddress adresse;
     DatagramSocket client = null;
-
-    String IP = "192.168.43.232";//192.168.43.131
+    String IP = "192.168.43.202";//192.168.43.131
     OscP5 oscP5;
     NetAddress myRemoteLocation;
     static UDPClient udpClient = null;
@@ -41,8 +41,8 @@ public  class UDPClient {
 
     private UDPClient(String pName){
         name = pName;
-        oscP5 = new OscP5(this,port);
-        myRemoteLocation = new NetAddress(IP,port);
+        oscP5 = new OscP5(this, port);
+        myRemoteLocation = new NetAddress(IP, port);
     }
 
     public void run() {
@@ -82,7 +82,6 @@ public  class UDPClient {
                     client.send(packet);
                     System.out.println("envoie");
 
-
                 } catch (SocketException e) {
                     e.printStackTrace();
                 } catch (UnknownHostException e) {
@@ -90,6 +89,8 @@ public  class UDPClient {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+
+
             }
         });
         t.start();
@@ -103,16 +104,15 @@ public  class UDPClient {
             @Override
             public void run() {
                 OscMessage myMessage = new OscMessage(s);
-                //myRemoteLocation = new NetAddress(IP,port);
+               // myRemoteLocation = new NetAddress("127.0.0.1",12001);
                  /* send the message */
-                oscP5.send(myMessage, myRemoteLocation);
+                  oscP5.send(myMessage, myRemoteLocation);
              //   System.out.println("Sending data"  );
             }
         });
         t.start();
 
     }
-
 
 
     public void setPort(int port){
