@@ -98,7 +98,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         if(!message.equals("") && !message.equals(lastMessage)){
             lastMessage = message;
-            System.out.println(message);
             try {
                 sendMessage(message);
             } catch (SocketException e) {
